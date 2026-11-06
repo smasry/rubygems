@@ -58,7 +58,7 @@ module Bundler
         }
       end
 
-      Plugin.gemfile_install(Bundler.default_gemfile, Bundler.default_lockfile, unlock.dup) if Bundler.settings[:plugins]
+      Plugin.gemfile_install(Bundler.default_gemfile, Bundler.default_lockfile, unlock.dup, local: options[:local]) if Bundler.settings[:plugins]
 
       Bundler::CLI::Common.ensure_all_gems_in_lockfile!(explicit_gems) if explicit_gems
 

@@ -31,11 +31,16 @@ module Bundler
       # Gemfile searching for plugins to be installed
       #
       # @param [Definition] definition object
+      # @param [Boolean] latest whether to resolve remotely even if nothing is missing
+      # @param [Boolean] local whether to resolve against local gems only
+      # @param [Boolean] prefer_local whether to prefer local gems over remote ones
       # @return [Hash] map of names to their specs they are installed with
-      def install_definition(definition, latest = false)
+      def install_definition(definition, latest = false, local: false, prefer_local: false)
         def definition.lock(*); end
 
-        if latest || definition.missing_specs?
+        definition.prefer_local! if prefer_local
+
+        if !local && (latest || definition.missing_specs?)
           definition.remotely!
         else
           definition.with_cache!

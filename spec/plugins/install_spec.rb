@@ -671,6 +671,61 @@ RSpec.describe "bundler plugin install" do
         plugin_should_be_installed("foo")
       end
     end
+
+    context "with --local" do
+      it "installs plugins from locally installed gems without fetching remotely" do
+        system_gems "foo-1.0", "myrack-1.0.0", gem_repo: gem_repo2
+
+        install_gemfile <<-G, local: true
+          source 'https://gem.repo2'
+          plugin 'foo'
+          gem 'myrack', "1.0.0"
+        G
+
+        expect(out).not_to include("Fetching")
+        expect(out).to include("Installed plugin foo")
+        expect(out).to include("Bundle complete!")
+
+        expect(lockfile).to include(checksum_to_lock(gem_repo2, "foo", "1.0"))
+        plugin_should_be_installed("foo")
+      end
+
+      it "does not fetch plugins remotely" do
+        system_gems "myrack-1.0.0", gem_repo: gem_repo2
+
+        install_gemfile <<-G, local: true, raise_on_error: false
+          source 'https://gem.repo2'
+          plugin 'foo'
+          gem 'myrack', "1.0.0"
+        G
+
+        expect(err).to include("Could not find gem 'foo' in locally installed gems")
+        plugin_should_not_be_installed("foo")
+      end
+    end
+
+    context "with --prefer-local" do
+      it "prefers locally installed versions of plugin dependencies" do
+        update_repo2 do
+          build_gem "foo-dep", "1.0"
+          build_gem "foo-dep", "1.1"
+          build_plugin "foo-with-dep" do |s|
+            s.add_dependency "foo-dep"
+          end
+        end
+
+        system_gems "foo-dep-1.0", gem_repo: gem_repo2
+
+        install_gemfile <<-G, "prefer-local": true
+          source 'https://gem.repo2'
+          plugin 'foo-with-dep'
+        G
+
+        expect(out).to include("Installed plugin foo-with-dep")
+        expect(the_bundle).to include_gems("foo-dep 1.0")
+        plugin_should_be_installed("foo-with-dep")
+      end
+    end
   end
 
   context "inline gemfiles" do

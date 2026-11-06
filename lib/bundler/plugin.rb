@@ -109,8 +109,12 @@ module Bundler
     # specified by plugin method
     #
     # @param [Pathname] gemfile path
+    # @param [Pathname] lockfile path
+    # @param [Hash, Boolean] unlock options, as given to Definition
+    # @param [Boolean] local whether to resolve against local gems only
+    # @param [Boolean] prefer_local whether to prefer local gems over remote ones
     # @param [Proc] block that can be evaluated for (inline) Gemfile
-    def gemfile_install(gemfile = nil, lockfile = nil, unlock = {}, &inline)
+    def gemfile_install(gemfile = nil, lockfile = nil, unlock = {}, local: false, prefer_local: false, &inline)
       @gemfile_parse = true
       Bundler.configure
       builder = DSL.new
@@ -138,7 +142,7 @@ module Bundler
 
       definition = builder.to_definition(lockfile, unlock)
 
-      installed_specs = Installer.new.install_definition(definition, updating)
+      installed_specs = Installer.new.install_definition(definition, updating, local: local, prefer_local: prefer_local)
 
       save_plugins installed_specs.slice(*plugins), builder.inferred_plugins
     rescue RuntimeError => e
