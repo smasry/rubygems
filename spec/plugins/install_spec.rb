@@ -632,6 +632,44 @@ RSpec.describe "bundler plugin install" do
 
         expect(the_bundle).to include_gems("foo 1.0.0")
       end
+
+      it "records the checksum of plugins even when the source does not provide checksums" do
+        install_gemfile <<-G, artifice: "endpoint"
+          source 'https://gem.repo2'
+          plugin 'foo'
+          gem 'myrack', "1.0.0"
+        G
+
+        expect(out).to include("Installed plugin foo")
+
+        checksums = checksums_section_when_enabled do |c|
+          c.checksum gem_repo2, "foo", "1.0"
+          c.checksum gem_repo2, "myrack", "1.0.0"
+        end
+
+        expect(lockfile).to eq <<~L
+          GEM
+            remote: https://gem.repo2/
+            specs:
+              foo (1.0)
+              myrack (1.0.0)
+
+          PLATFORMS
+            #{lockfile_platforms}
+
+          DEPENDENCIES
+            foo
+            myrack (= 1.0.0)
+          #{checksums}
+          BUNDLED WITH
+            #{Bundler::VERSION}
+        L
+
+        bundle "install", env: { "BUNDLE_FROZEN" => "true" }
+
+        expect(out).to include("Bundle complete!")
+        plugin_should_be_installed("foo")
+      end
     end
   end
 

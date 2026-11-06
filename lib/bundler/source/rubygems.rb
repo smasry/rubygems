@@ -208,6 +208,7 @@ module Bundler
       def install(spec, options = {})
         if (spec.default_gem? && !cached_built_in_gem(spec, local: options[:local])) || (installed?(spec) && !options[:force])
           print_using_message "Using #{version_message(spec, options[:previous_spec])}"
+          register_cached_checksum(spec)
           return nil # no post-install message
         end
 
@@ -506,6 +507,20 @@ module Bundler
 
       def installed?(spec)
         installed_specs[spec].any? && !spec.installation_missing?
+      end
+
+      # A gem installed before this run reached it, for example by the plugin
+      # installer or by a previous `--local` install, skips the gem installer
+      # that would have registered its checksum. Without a remote index
+      # providing one, the lockfile would get an empty CHECKSUMS entry, which
+      # frozen mode refuses. Fill it from the cached .gem when there is one.
+      def register_cached_checksum(spec)
+        store = spec.source.checksum_store
+        return unless store.missing?(spec) || store.empty?(spec)
+        return unless path = cached_gem(spec)
+
+        require "rubygems/package"
+        store.register(spec, Checksum.from_gem_package(Gem::Package.new(path)))
       end
 
       def rubygems_dir
